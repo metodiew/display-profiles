@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+CONFIG_FILE="$SCRIPT_DIR/display-profiles.conf"
+
+# Check if xrandr is available
+if ! command -v xrandr >/dev/null 2>&1; then
+    echo "Error: xrandr is not installed. Please install x11-xserver-utils package."
+    exit 1
+fi
+
+# Function to validate display exists
+validate_display() {
+    local display="$1"
+    if ! xrandr | grep -q "^$display connected"; then
+        echo "Warning: Display '$display' is not connected."
+        return 1
+    fi
+    return 0
+}
+
+# Function to apply display settings
+apply_display_settings() {
+    local profile="$1"
+    local config_line
+    
+    # Read the config file, skip comments
+    while IFS= read -r line; do
+        [[ $line =~ ^[[:space:]]*# ]] && continue
+        [[ -z "$line" ]] && continue
+        
+        # Split the line into profile name and settings
+        profile_name="${line%%|*}"
+        if [ "$profile_name" = "$profile" ]; then
+            config_line="$line"
+            break
+        fi
+    done < "$CONFIG_FILE"
+    
+    # Check if profile was found
+    if [ -z "$config_line" ]; then
+        echo "Error: Profile '$profile' not found in configuration file."
+        exit 1
+    fi
+    
+    # Build xrandr command
+    cmd="xrandr"
+    
+    # Split the config line into parts (profile|display1|display2)
+    IFS='|' read -r _ display1 display2 <<< "$config_line"
+    
+    # Function to add display settings to command
+    add_display_settings() {
+        local settings="$1"
+        IFS=',' read -r name mode rate pos primary <<< "$settings"
+        
+        # Validate display if it's not being turned off
+        if [ "$mode" != "off" ]; then
+            validate_display "$name" || echo "Continuing anyway..."
+        fi
+        
+        cmd+=" --output $name"
+        if [ "$mode" = "off" ]; then
+            cmd+=" --off"
+        else
+            [ -n "$mode" ] && cmd+=" --mode $mode"
+            [ -n "$rate" ] && cmd+=" --rate $rate"
+            [ -n "$pos" ] && cmd+=" --pos $pos"
+            [ "$primary" = "true" ] && cmd+=" --primary"
+        fi
+    }
+    
+    # Add settings for both displays
+    [ -n "$display1" ] && add_display_settings "$display1"
+    [ -n "$display2" ] && add_display_settings "$display2"
+    
+    # Execute the command
+    if ! eval "$cmd"; then
+        echo "Error: Failed to apply display settings. Check your configuration."
+        exit 1
+    fi
+}
+
+# List available profiles
+list_profiles() {
+    echo "Available profiles:"
+    grep -v '^#' "$CONFIG_FILE" | cut -d'|' -f1 | grep -v '^$'
+}
+
+# Check if config file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: Configuration file not found at $CONFIG_FILE"
+    exit 1
+fi
+
+# Parse arguments
+case "$1" in
+    "")
+        echo "Usage: display-profile <profile_name>"
+        echo "       display-profile --list"
+        exit 1
+        ;;
+    --list|-l)
+        list_profiles
+        ;;
+    *)
+        apply_display_settings "$1"
+        ;;
+esac

@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# Enable debug output
+exec 2>/tmp/display-profiles-debug.log
+set -x
+
+# Log environment information
+echo "Current user: $(whoami)" >> /tmp/display-profiles-debug.log
+echo "DISPLAY: $DISPLAY" >> /tmp/display-profiles-debug.log
+echo "XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR" >> /tmp/display-profiles-debug.log
+echo "DBUS_SESSION_BUS_ADDRESS: $DBUS_SESSION_BUS_ADDRESS" >> /tmp/display-profiles-debug.log
+
+# Ensure we have a display
+if [ -z "$DISPLAY" ]; then
+    export DISPLAY=:0
+fi
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Check if zenity is available
+if ! command -v zenity >/dev/null 2>&1; then
+    echo "Error: zenity is not installed. Please install it with: sudo apt install zenity" >> /tmp/display-profiles-debug.log
+    exit 1
+fi
+
+# Try to ensure we have access to the X server
+xhost >/dev/null 2>&1
+
+# Display a simple selection dialog with available profiles
+PROFILE=$(zenity --list \
+    --title="Display Profiles Switcher" \
+    --text="Select a display profile:" \
+    --column="Profile" \
+    --width=300 \
+    --height=300 \
+    --hide-header \
+    "default" \
+    "home" \
+    "office" \
+    "meeting" \
+    "meeting-home" \
+    "video")
+
+# Log the result
+echo "Selected profile: $PROFILE" >> /tmp/display-profiles-debug.log
+
+# Exit if no selection was made
+if [ -z "$PROFILE" ]; then
+    echo "No profile selected" >> /tmp/display-profiles-debug.log
+    exit 0
+fi
+
+# Apply the selected profile using absolute path
+if "$SCRIPT_DIR/display-profiles" "$PROFILE" 2>/tmp/display-profile-error.log; then
+    echo "Profile applied successfully" >> /tmp/display-profiles-debug.log
+    exit 0
+else
+    ERROR_MSG=$(cat /tmp/display-profile-error.log)
+    echo "Error applying profile: $ERROR_MSG" >> /tmp/display-profiles-debug.log
+    zenity --error \
+        --title="Error" \
+        --text="Failed to apply profile '$PROFILE'.\n\nError details:\n$ERROR_MSG" \
+        --width=400
+    rm -f /tmp/display-profile-error.log
+fi
