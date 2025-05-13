@@ -1,0 +1,26 @@
+# System files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*~
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Local configuration backups
+display-profiles.conf.local
+display-profiles.conf.backup
+
+# Temporary files
+*.tmp
+*.temp
+.~*#
+
+# Log files
+*.log 
