@@ -40,7 +40,8 @@ PROFILE=$(zenity --list \
     "office" \
     "meeting" \
     "meeting-home" \
-    "video")
+    "video"
+)
 
 # Log the result
 echo "Selected profile: $PROFILE" >> /tmp/display-profiles-debug.log

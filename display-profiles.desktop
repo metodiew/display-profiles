@@ -2,9 +2,11 @@
 Version=1.0
 Name=Display Profiles Switcher
 Comment=Switch between different display configurations
-Exec=display-profiles-gui
-Icon=preferences-desktop-display
+Exec=/home/metodiew/.local/bin/display-profiles-gui
+Icon=/usr/share/icons/Adwaita/48x48/apps/preferences-desktop-display-symbolic.symbolic.png
 Terminal=false
 Type=Application
-Categories=Settings;System;
+Categories=Settings;System;X-Settings;X-Cinnamon-Settings-Panel;
 Keywords=display;monitor;screen;profile;
+StartupNotify=true
+StartupWMClass=display-profiles-gui
