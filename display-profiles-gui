@@ -40,7 +40,8 @@ PROFILE=$(zenity --list \
     "office" \
     "meeting" \
     "meeting-home" \
-    "video"
+    "video" \
+    "video-home" \
 )
 
 # Log the result
