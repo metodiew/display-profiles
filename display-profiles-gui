@@ -27,7 +27,19 @@ fi
 # Try to ensure we have access to the X server
 xhost >/dev/null 2>&1
 
-# Display a simple selection dialog with available profiles
+# Read profiles dynamically from config file
+CONFIG_FILE="$HOME/.local/bin/display-profiles.conf"
+if [ ! -f "$CONFIG_FILE" ]; then
+    CONFIG_FILE="$SCRIPT_DIR/display-profiles.conf"
+fi
+
+mapfile -t PROFILES < <(grep -v '^#' "$CONFIG_FILE" | grep -v '^$' | cut -d'|' -f1)
+
+if [ ${#PROFILES[@]} -eq 0 ]; then
+    zenity --error --title="Error" --text="No profiles found in configuration." --width=300
+    exit 1
+fi
+
 PROFILE=$(zenity --list \
     --title="Display Profiles Switcher" \
     --text="Select a display profile:" \
@@ -35,13 +47,7 @@ PROFILE=$(zenity --list \
     --width=300 \
     --height=300 \
     --hide-header \
-    "default" \
-    "home" \
-    "office" \
-    "meeting" \
-    "meeting-home" \
-    "video" \
-    "video-home" \
+    "${PROFILES[@]}" \
 )
 
 # Log the result

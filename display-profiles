@@ -47,19 +47,19 @@ apply_display_settings() {
     # Build xrandr command
     cmd="xrandr"
     
-    # Split the config line into parts (profile|display1|display2)
-    IFS='|' read -r _ display1 display2 <<< "$config_line"
-    
+    # Split the config line into parts (profile|display1|display2|...)
+    IFS='|' read -ra config_parts <<< "$config_line"
+
     # Function to add display settings to command
     add_display_settings() {
         local settings="$1"
         IFS=',' read -r name mode rate pos primary <<< "$settings"
-        
+
         # Validate display if it's not being turned off
         if [ "$mode" != "off" ]; then
             validate_display "$name" || echo "Continuing anyway..."
         fi
-        
+
         cmd+=" --output $name"
         if [ "$mode" = "off" ]; then
             cmd+=" --off"
@@ -70,10 +70,12 @@ apply_display_settings() {
             [ "$primary" = "true" ] && cmd+=" --primary"
         fi
     }
-    
-    # Add settings for both displays
-    [ -n "$display1" ] && add_display_settings "$display1"
-    [ -n "$display2" ] && add_display_settings "$display2"
+
+    # Add settings for all displays (skip index 0 which is the profile name)
+    for i in "${!config_parts[@]}"; do
+        [ "$i" -eq 0 ] && continue
+        [ -n "${config_parts[$i]}" ] && add_display_settings "${config_parts[$i]}"
+    done
     
     # Execute the command
     if ! eval "$cmd"; then
