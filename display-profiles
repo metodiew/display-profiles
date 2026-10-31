@@ -82,6 +82,11 @@ apply_display_settings() {
         echo "Error: Failed to apply display settings. Check your configuration."
         exit 1
     fi
+
+    # Optional per-profile hook (audio defaults and the like): hooks/<profile name>
+    local hook
+    hook="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/hooks/$profile"
+    [ -x "$hook" ] && "$hook"
 }
 
 # List available profiles

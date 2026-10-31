@@ -1,0 +1,3 @@
+#!/bin/bash
+# Meeting room audio: same hook autorandr runs on its own switch.
+exec "$HOME/.config/autorandr/office-meeting-pro/postswitch"
