@@ -33,21 +33,54 @@ if [ ! -f "$CONFIG_FILE" ]; then
     CONFIG_FILE="$SCRIPT_DIR/display-profiles.conf"
 fi
 
-mapfile -t PROFILES < <(grep -v '^#' "$CONFIG_FILE" | grep -v '^$' | cut -d'|' -f1)
+# Outputs that are connected right now
+mapfile -t CONNECTED < <(xrandr --query | awk '/ connected/ {print $1}')
 
-if [ ${#PROFILES[@]} -eq 0 ]; then
+is_connected() {
+    local out
+    for out in "${CONNECTED[@]}"; do
+        [ "$out" = "$1" ] && return 0
+    done
+    return 1
+}
+
+# Each profile gets a status: "ready" when every display it turns on is connected,
+# otherwise the missing outputs. Ready profiles are listed first.
+READY_ROWS=()
+MISSING_ROWS=()
+while IFS= read -r line; do
+    [[ $line =~ ^[[:space:]]*# ]] && continue
+    [[ -z "$line" ]] && continue
+    IFS='|' read -ra parts <<< "$line"
+    missing=()
+    for i in "${!parts[@]}"; do
+        [ "$i" -eq 0 ] && continue
+        IFS=',' read -r name mode _ <<< "${parts[$i]}"
+        [ "$mode" = "off" ] && continue
+        is_connected "$name" || missing+=("$name")
+    done
+    if [ ${#missing[@]} -eq 0 ]; then
+        READY_ROWS+=("${parts[0]}" "ready")
+    else
+        MISSING_ROWS+=("${parts[0]}" "needs ${missing[*]}")
+    fi
+done < "$CONFIG_FILE"
+
+if [ $(( ${#READY_ROWS[@]} + ${#MISSING_ROWS[@]} )) -eq 0 ]; then
     zenity --error --title="Error" --text="No profiles found in configuration." --width=300
     exit 1
 fi
 
 PROFILE=$(zenity --list \
     --title="Display Profiles Switcher" \
-    --text="Select a display profile:" \
+    --text="Select a display profile (connected: ${CONNECTED[*]}):" \
     --column="Profile" \
-    --width=300 \
-    --height=300 \
-    --hide-header \
-    "${PROFILES[@]}" \
+    --column="Monitors" \
+    --print-column=1 \
+    --width=420 \
+    --height=460 \
+    "${READY_ROWS[@]}" \
+    "${MISSING_ROWS[@]}" \
 )
 
 # Log the result
@@ -60,7 +93,7 @@ if [ -z "$PROFILE" ]; then
 fi
 
 # Apply the selected profile using absolute path
-if "$SCRIPT_DIR/display-profiles" "$PROFILE" 2>/tmp/display-profile-error.log; then
+if "$SCRIPT_DIR/display-profiles" "$PROFILE" >/tmp/display-profile-error.log 2>&1; then
     echo "Profile applied successfully" >> /tmp/display-profiles-debug.log
     exit 0
 else

@@ -86,7 +86,9 @@ apply_display_settings() {
     # Optional per-profile hook (audio defaults and the like): hooks/<profile name>
     local hook
     hook="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/hooks/$profile"
-    [ -x "$hook" ] && "$hook"
+    if [ -x "$hook" ]; then
+        "$hook"
+    fi
 }
 
 # List available profiles
